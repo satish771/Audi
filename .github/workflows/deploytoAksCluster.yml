@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: technicalchallenge.azurecr.io
+        username: ${{ secrets.acr_technicalchallenge_username }}
+        password: ${{ secrets.acr_technicalchallenge_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/dlimages" -f  "dlimages/dockerfile" -t technicalchallenge.azurecr.io/webappfok8saks:${{ github.sha }}
+        docker push technicalchallenge.azurecr.io/webappfok8saks:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_webappfok8saks_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep webappfok8saks3df3 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace webappfok8saks3df3`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: webappfok8saks3df3
+        container-registry-url: technicalchallenge.azurecr.io
+        container-registry-username: ${{ secrets.acr_technicalchallenge_username }}
+        container-registry-password: ${{ secrets.acr_technicalchallenge_password }}
+        secret-name: webappfok8sadockerauth
+       
+    - uses: azure/k8s-deploy@v1
+      with:
+        namespace: webappfok8saks3df3
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          technicalchallenge.azurecr.io/webappfok8saks:${{ github.sha }}
+        imagepullsecrets: |
+          webappfok8sadockerauth
