@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: "webappfok8saks"
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: "webappfok8saks"
+    spec:
+      containers:
+        - name: "webappfok8saks"
+          image: "technicalchallenge.azurecr.io/webappfok8saks"
+          ports:
+          - containerPort: 80
